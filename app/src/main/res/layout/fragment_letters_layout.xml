@@ -7,10 +7,83 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+        <LinearLayout
+            android:id="@+id/contacts_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:orientation="vertical"
+            android:paddingTop="@dimen/small_margin"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/small_margin"
+                android:paddingEnd="@dimen/small_margin">
+
+                <LinearLayout
+                    android:id="@+id/contacts_order_toggle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/ripple_all_corners"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/small_margin">
+
+                    <ImageView
+                        android:id="@+id/contacts_order_icon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_clock_vector" />
+
+                    <org.fossify.commons.views.MyTextView
+                        android:id="@+id/contacts_order_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/small_margin"
+                        android:text="@string/sort_alphabetically" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/contacts_view_type_toggle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="@dimen/normal_margin"
+                    android:background="@drawable/ripple_all_corners"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/small_margin">
+
+                    <ImageView
+                        android:id="@+id/contacts_view_type_icon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_view_list_vector" />
+
+                    <org.fossify.commons.views.MyTextView
+                        android:id="@+id/contacts_view_type_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/small_margin"
+                        android:text="@string/list_view" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
         <org.fossify.commons.views.MyTextView
             android:id="@+id/fragment_placeholder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_below="@+id/contacts_header"
             android:layout_centerHorizontal="true"
             android:alpha="0.8"
             android:gravity="center"
@@ -39,6 +112,8 @@
             android:id="@+id/fragment_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_above="@+id/combined_contacts_holder"
+            android:layout_below="@+id/contacts_header"
             android:clipToPadding="false"
             android:layoutAnimation="@anim/layout_animation"
             android:paddingBottom="@dimen/recyclerview_fab_padding"
@@ -47,20 +122,89 @@
 
         <com.reddit.indicatorfastscroll.FastScrollerView
             android:id="@+id/letter_fastscroller"
-            android:layout_width="32dp"
+            android:layout_width="64dp"
             android:layout_height="wrap_content"
+            android:layout_alignTop="@+id/fragment_list"
+            android:layout_alignBottom="@+id/fragment_list"
             android:layout_alignParentEnd="true"
-            android:paddingTop="@dimen/big_margin"
-            android:paddingBottom="@dimen/big_margin" />
+            android:paddingTop="@dimen/small_margin"
+            android:paddingBottom="@dimen/small_margin" />
 
         <com.reddit.indicatorfastscroll.FastScrollerThumbView
             android:id="@+id/letter_fastscroller_thumb"
             android:layout_width="@dimen/fab_size"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_alignTop="@+id/letter_fastscroller"
             android:layout_alignBottom="@+id/letter_fastscroller"
             android:layout_marginEnd="@dimen/activity_margin"
             android:layout_toStartOf="@+id/letter_fastscroller" />
+
+        <GridLayout
+            android:id="@+id/combined_contacts_holder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/add_to_list_button"
+            android:layout_marginStart="@dimen/small_margin"
+            android:layout_marginEnd="@dimen/small_margin"
+            android:layout_marginBottom="@dimen/small_margin"
+            android:background="@drawable/combined_contacts_frame"
+            android:columnCount="4"
+            android:paddingStart="@dimen/small_margin"
+            android:paddingTop="@dimen/small_margin"
+            android:paddingEnd="@dimen/small_margin"
+            android:paddingBottom="@dimen/small_margin"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/add_to_list_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/filter_chips_scroll"
+            android:layout_marginStart="@dimen/small_margin"
+            android:layout_marginEnd="@dimen/small_margin"
+            android:layout_marginBottom="@dimen/small_margin"
+            android:background="@drawable/ripple_all_corners"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:padding="@dimen/normal_margin"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/add_to_list_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_plus_vector" />
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/add_to_list_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/small_margin"
+                android:text="@string/add_contacts_to_list"
+                android:textSize="@dimen/bigger_text_size" />
+        </LinearLayout>
+
+        <HorizontalScrollView
+            android:id="@+id/filter_chips_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:paddingTop="@dimen/small_margin"
+            android:paddingBottom="@dimen/small_margin"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/filter_chips_holder"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/small_margin"
+                android:paddingEnd="@dimen/small_margin" />
+        </HorizontalScrollView>
 
     </RelativeLayout>
 </merge>

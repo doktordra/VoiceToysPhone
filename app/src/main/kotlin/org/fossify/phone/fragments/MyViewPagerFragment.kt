@@ -15,6 +15,7 @@ import org.fossify.phone.activities.SimpleActivity
 import org.fossify.phone.adapters.ContactsAdapter
 import org.fossify.phone.adapters.RecentCallsAdapter
 import org.fossify.phone.databinding.FragmentLettersLayoutBinding
+import org.fossify.phone.databinding.FragmentDialpadLayoutBinding
 import org.fossify.phone.databinding.FragmentRecentsBinding
 import org.fossify.phone.extensions.config
 import org.fossify.phone.helpers.Config
@@ -84,5 +85,10 @@ abstract class MyViewPagerFragment<BINDING : MyViewPagerFragment.InnerBinding>(c
     class RecentsInnerBinding(val binding: FragmentRecentsBinding) : InnerBinding {
         override val fragmentList = null
         override val recentsList = binding.recentsList
+    }
+
+    class DialpadInnerBinding(val binding: FragmentDialpadLayoutBinding) : InnerBinding {
+        override val fragmentList = null
+        override val recentsList = null
     }
 }

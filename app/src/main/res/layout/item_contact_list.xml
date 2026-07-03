@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="@dimen/small_margin"
+    android:paddingBottom="@dimen/small_margin">
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/contact_list_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textSize="@dimen/bigger_text_size" />
+
+    <ImageView
+        android:id="@+id/contact_list_members"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="@dimen/normal_margin"
+        android:background="@drawable/ripple_all_corners"
+        android:contentDescription="@string/edit_list_members"
+        android:src="@drawable/ic_add_person_vector" />
+
+    <ImageView
+        android:id="@+id/contact_list_rename"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="@dimen/normal_margin"
+        android:background="@drawable/ripple_all_corners"
+        android:contentDescription="@string/rename_list"
+        android:src="@drawable/ic_edit_vector" />
+
+    <ImageView
+        android:id="@+id/contact_list_delete"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="@dimen/normal_margin"
+        android:background="@drawable/ripple_all_corners"
+        android:contentDescription="@string/delete_list"
+        android:src="@drawable/ic_delete_vector" />
+</LinearLayout>

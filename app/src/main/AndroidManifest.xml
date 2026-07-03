@@ -153,44 +153,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".activities.DialerActivity"
-            android:configChanges="orientation"
-            android:exported="true"
-            android:label="@string/dialer"
-            android:theme="@style/Theme.Transparent">
-
-            <intent-filter>
-                <action android:name="android.intent.action.CALL" />
-                <category android:name="android.intent.category.DEFAULT" />
-
-                <data android:scheme="tel" />
-            </intent-filter>
-        </activity>
-
-        <service
-            android:name=".services.CallService"
-            android:enabled="true"
-            android:exported="true"
-            android:permission="android.permission.BIND_INCALL_SERVICE">
-            <meta-data
-                android:name="android.telecom.IN_CALL_SERVICE_UI"
-                android:value="true" />
-
-            <intent-filter>
-                <action android:name="android.telecom.InCallService" />
-            </intent-filter>
-        </service>
-
-        <service
-            android:name=".services.SimpleCallScreeningService"
-            android:exported="true"
-            android:permission="android.permission.BIND_SCREENING_SERVICE">
-            <intent-filter>
-                <action android:name="android.telecom.CallScreeningService" />
-            </intent-filter>
-        </service>
-
         <receiver
             android:name=".receivers.CallActionReceiver"
             android:enabled="true"

@@ -31,6 +31,8 @@ import org.fossify.phone.interfaces.RefreshItemsListener
 import org.fossify.phone.models.CallLogItem
 import org.fossify.phone.models.RecentCall
 
+private const val COMPARABLE_NUMBER_LENGTH = 9
+
 class RecentsFragment(
     context: Context, attributeSet: AttributeSet,
 ) : MyViewPagerFragment<MyViewPagerFragment.RecentsInnerBinding>(context, attributeSet), RefreshItemsListener {
@@ -190,13 +192,33 @@ class RecentsFragment(
         getRecentCalls(loadAll) {
             allRecentCalls = it
             if (searchQuery.isNullOrEmpty()) {
-                activity?.runOnUiThread { gotRecents(it) }
+                val toShow = if (context.config.recentsSortedByFrequency) sortByFrequency(it) else it
+                activity?.runOnUiThread { gotRecents(toShow) }
             } else {
                 updateSearchResult()
             }
 
             callback?.invoke()
         }
+    }
+
+    // groups all recent calls by phone number and orders them so the most frequently contacted numbers
+    // are shown first (used by the "Frequently contacted" mode). Date separators are dropped in this mode.
+    private fun sortByFrequency(items: List<CallLogItem>): List<CallLogItem> {
+        val calls = items.filterIsInstance<RecentCall>()
+        return calls
+            .groupBy { call -> call.phoneNumber.filter { it.isDigit() }.takeLast(COMPARABLE_NUMBER_LENGTH) }
+            .values
+            .map { group ->
+                val representative = group.maxByOrNull { it.startTS } ?: group.first()
+                val count = group.sumOf { it.groupedCalls?.size ?: 1 }
+                representative to count
+            }
+            .sortedWith(
+                compareByDescending<Pair<RecentCall, Int>> { it.second }
+                    .thenByDescending { it.first.startTS }
+            )
+            .map { it.first }
     }
 
     private fun getRecentCalls(loadAll: Boolean, callback: (List<CallLogItem>) -> Unit) {

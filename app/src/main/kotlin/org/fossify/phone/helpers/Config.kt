@@ -8,6 +8,7 @@ import android.telephony.TelephonyManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import org.fossify.commons.helpers.BaseConfig
+import org.fossify.commons.helpers.VIEW_TYPE_LIST
 import org.fossify.phone.extensions.getPhoneAccountHandleModel
 import org.fossify.phone.extensions.putPhoneAccountHandle
 import org.fossify.phone.models.SpeedDial
@@ -135,4 +136,24 @@ class Config(context: Context) : BaseConfig(context) {
     var alwaysShowFullscreen: Boolean
         get() = prefs.getBoolean(ALWAYS_SHOW_FULLSCREEN, false)
         set(alwaysShowFullscreen) = prefs.edit().putBoolean(ALWAYS_SHOW_FULLSCREEN, alwaysShowFullscreen).apply()
+
+    // view type (list/grid) used specifically by the Contacts tab, kept separate from Favorites
+    var contactsViewType: Int
+        get() = prefs.getInt(CONTACTS_VIEW_TYPE, VIEW_TYPE_LIST)
+        set(value) = prefs.edit().putInt(CONTACTS_VIEW_TYPE, value).apply()
+
+    // when true, the Recents tab shows the most frequently contacted numbers first
+    var recentsSortedByFrequency: Boolean
+        get() = prefs.getBoolean(RECENTS_SORTED_BY_FREQUENCY, false)
+        set(value) = prefs.edit().putBoolean(RECENTS_SORTED_BY_FREQUENCY, value).apply()
+
+    // id of the contact group/list to show on the Contacts tab, ALL_CONTACTS_GROUP_ID = all
+    var selectedContactGroupId: Long
+        get() = prefs.getLong(SELECTED_CONTACT_GROUP_ID, ALL_CONTACTS_GROUP_ID)
+        set(value) = prefs.edit().putLong(SELECTED_CONTACT_GROUP_ID, value).apply()
+
+    // when true, the Contacts tab is sorted by most recent communication instead of alphabetically
+    var contactsSortedByRecents: Boolean
+        get() = prefs.getBoolean(CONTACTS_SORTED_BY_RECENTS, false)
+        set(value) = prefs.edit().putBoolean(CONTACTS_SORTED_BY_RECENTS, value).apply()
 }

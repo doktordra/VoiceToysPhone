@@ -1,12 +1,12 @@
 package org.fossify.phone.dialogs
 
 import org.fossify.commons.activities.BaseSimpleActivity
+import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.getAlertDialogBuilder
 import org.fossify.commons.extensions.setupDialogStuff
 import org.fossify.commons.extensions.viewBinding
 import org.fossify.commons.helpers.TAB_CALL_HISTORY
 import org.fossify.commons.helpers.TAB_CONTACTS
-import org.fossify.commons.helpers.TAB_FAVORITES
 import org.fossify.commons.views.MyAppCompatCheckbox
 import org.fossify.phone.R
 import org.fossify.phone.databinding.DialogManageVisibleTabsBinding
@@ -20,9 +20,11 @@ class ManageVisibleTabsDialog(val activity: BaseSimpleActivity) {
     init {
         tabs.apply {
             put(TAB_CONTACTS, R.id.manage_visible_tabs_contacts)
-            put(TAB_FAVORITES, R.id.manage_visible_tabs_favorites)
             put(TAB_CALL_HISTORY, R.id.manage_visible_tabs_call_history)
         }
+
+        // the Favorites tab has been removed in favor of the in-list favorites filter
+        binding.manageVisibleTabsFavorites.beGone()
 
         val showTabs = activity.config.showTabs
         for ((key, value) in tabs) {

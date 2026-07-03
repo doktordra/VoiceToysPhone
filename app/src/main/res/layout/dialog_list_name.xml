@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<org.fossify.commons.views.MyTextInputLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="@dimen/activity_margin"
+    android:layout_marginTop="@dimen/activity_margin"
+    android:layout_marginEnd="@dimen/activity_margin"
+    android:hint="@string/list_name">
+
+    <org.fossify.commons.views.MyEditText
+        android:id="@+id/list_name_value"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="textCapWords"
+        android:maxLines="1" />
+</org.fossify.commons.views.MyTextInputLayout>

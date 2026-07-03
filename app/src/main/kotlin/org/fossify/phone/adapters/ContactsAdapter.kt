@@ -48,7 +48,9 @@ class ContactsAdapter(
     private val enableDrag: Boolean = false,
     private val allowLongClick: Boolean = true,
     itemClick: (Any) -> Unit,
-    val profileIconClick: ((Any) -> Unit)? = null
+    val itemLongClick: ((Contact) -> Unit)? = null,
+    val profileIconClick: ((Any) -> Unit)? = null,
+    val checkableKeys: HashSet<Int>? = null
 ) : MyRecyclerViewAdapter(activity, recyclerView, itemClick),
     ItemTouchHelperContract, MyRecyclerView.MyZoomListener {
 
@@ -363,7 +365,15 @@ class ContactsAdapter(
     private fun setupView(binding: ItemViewBinding, contact: Contact, holder: ViewHolder) {
         binding.apply {
             root.setupViewBackground(activity)
-            itemContactFrame.isSelected = selectedKeys.contains(contact.rawId)
+            itemContactFrame.isSelected = checkableKeys?.contains(contact.rawId) ?: selectedKeys.contains(contact.rawId)
+
+            // when a long-click handler is provided, long-press opens the contact instead of starting selection
+            if (itemLongClick != null) {
+                root.setOnLongClickListener {
+                    itemLongClick.invoke(contact)
+                    true
+                }
+            }
 
             itemContactImage.apply {
                 if (profileIconClick != null && viewType != VIEW_TYPE_GRID) {
@@ -377,7 +387,11 @@ class ContactsAdapter(
                         }
                     }
                     setOnLongClickListener {
-                        holder.viewLongClicked()
+                        if (itemLongClick != null) {
+                            itemLongClick.invoke(contact)
+                        } else {
+                            holder.viewLongClicked()
+                        }
                         true
                     }
                 }

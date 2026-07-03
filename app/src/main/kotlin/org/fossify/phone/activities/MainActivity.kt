@@ -16,6 +16,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.viewpager.widget.ViewPager
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.tabs.TabLayout
 import me.grantland.widget.AutofitHelper
 import org.fossify.commons.dialogs.ChangeViewTypeDialog
 import org.fossify.commons.dialogs.ConfirmationDialog
@@ -37,12 +38,13 @@ import org.fossify.phone.extensions.config
 import org.fossify.phone.extensions.handleFullScreenNotificationsPermission
 import org.fossify.phone.extensions.launchCreateNewContactIntent
 import org.fossify.phone.fragments.ContactsFragment
+import org.fossify.phone.fragments.DialpadFragment
 import org.fossify.phone.fragments.FavoritesFragment
 import org.fossify.phone.fragments.MyViewPagerFragment
 import org.fossify.phone.fragments.RecentsFragment
+import org.fossify.phone.helpers.ALL_CONTACTS_GROUP_ID
 import org.fossify.phone.helpers.OPEN_DIAL_PAD_AT_LAUNCH
 import org.fossify.phone.helpers.RecentsHelper
-import org.fossify.phone.helpers.tabsList
 import org.fossify.phone.models.Events
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
@@ -70,37 +72,9 @@ class MainActivity : SimpleActivity() {
         EventBus.getDefault().register(this)
         launchedDialer = savedInstanceState?.getBoolean(OPEN_DIAL_PAD_AT_LAUNCH) ?: false
 
-        if (isDefaultDialer()) {
-            checkContactPermissions()
-
-            if (!config.wasOverlaySnackbarConfirmed && !Settings.canDrawOverlays(this)) {
-                val snackbar = Snackbar.make(
-                    binding.mainHolder,
-                    R.string.allow_displaying_over_other_apps,
-                    Snackbar.LENGTH_INDEFINITE
-                ).setAction(R.string.ok) {
-                    config.wasOverlaySnackbarConfirmed = true
-                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
-                }
-
-                snackbar.setBackgroundTint(getProperBackgroundColor().darkenColor())
-                snackbar.setTextColor(getProperTextColor())
-                snackbar.setActionTextColor(getProperTextColor())
-                snackbar.show()
-            }
-
-            handleFullScreenNotificationsPermission { granted ->
-                if (!granted) {
-                    toast(org.fossify.commons.R.string.notifications_disabled)
-                }
-            }
-        } else {
-            launchSetDefaultDialerIntent()
-        }
-
-        if (isQPlus() && (config.blockUnknownNumbers || config.blockHiddenNumbers)) {
-            setDefaultCallerIdApp()
-        }
+        // this app no longer takes over call handling; the system dialer shows the in-call screen.
+        // we only need contacts access to display and search contacts/recents.
+        checkContactPermissions()
 
         setupTabs()
         Contact.sorting = config.sorting
@@ -115,10 +89,6 @@ class MainActivity : SimpleActivity() {
         }
 
         updateMenuColors()
-        val properPrimaryColor = getProperPrimaryColor()
-        val dialpadIcon = resources.getColoredDrawableWithColor(R.drawable.ic_dialpad_vector, properPrimaryColor.getContrastColor())
-        binding.mainDialpadButton.setImageDrawable(dialpadIcon)
-
         updateTextColors(binding.mainHolder)
         setupTabColors()
 
@@ -145,9 +115,6 @@ class MainActivity : SimpleActivity() {
         }
 
         checkShortcuts()
-        Handler().postDelayed({
-            getRecentsFragment()?.refreshItems()
-        }, 2000)
     }
 
     override fun onPause() {
@@ -197,11 +164,11 @@ class MainActivity : SimpleActivity() {
         val currentFragment = getCurrentFragment()
         binding.mainMenu.requireToolbar().menu.apply {
             findItem(R.id.clear_call_history).isVisible = currentFragment == getRecentsFragment()
-            findItem(R.id.sort).isVisible = currentFragment != getRecentsFragment()
-            findItem(R.id.filter).isVisible = currentFragment != getRecentsFragment()
+            findItem(R.id.sort).isVisible = currentFragment == getContactsFragment()
+            findItem(R.id.filter).isVisible = currentFragment == getContactsFragment()
             findItem(R.id.create_new_contact).isVisible = currentFragment == getContactsFragment()
-            findItem(R.id.change_view_type).isVisible = currentFragment == getFavoritesFragment()
-            findItem(R.id.column_count).isVisible = currentFragment == getFavoritesFragment() && config.viewType == VIEW_TYPE_GRID
+            findItem(R.id.change_view_type).isVisible = false
+            findItem(R.id.column_count).isVisible = false
             findItem(R.id.more_apps_from_us).isVisible = !resources.getBoolean(R.bool.hide_google_relations)
         }
     }
@@ -331,41 +298,19 @@ class MainActivity : SimpleActivity() {
     private fun getInactiveTabIndexes(activeIndex: Int) = (0 until binding.mainTabsHolder.tabCount).filter { it != activeIndex }
 
     private fun getSelectedTabDrawableIds(): List<Int> {
-        val showTabs = config.showTabs
-        val icons = mutableListOf<Int>()
-
-        if (showTabs and TAB_CONTACTS != 0) {
-            icons.add(R.drawable.ic_person_vector)
-        }
-
-        if (showTabs and TAB_FAVORITES != 0) {
-            icons.add(R.drawable.ic_star_vector)
-        }
-
-        if (showTabs and TAB_CALL_HISTORY != 0) {
-            icons.add(R.drawable.ic_clock_filled_vector)
-        }
-
-        return icons
+        return listOf(
+            R.drawable.ic_person_vector,
+            R.drawable.ic_dialpad_vector,
+            R.drawable.ic_clock_filled_vector
+        )
     }
 
     private fun getDeselectedTabDrawableIds(): ArrayList<Int> {
-        val showTabs = config.showTabs
-        val icons = ArrayList<Int>()
-
-        if (showTabs and TAB_CONTACTS != 0) {
-            icons.add(R.drawable.ic_person_outline_vector)
-        }
-
-        if (showTabs and TAB_FAVORITES != 0) {
-            icons.add(R.drawable.ic_star_outline_vector)
-        }
-
-        if (showTabs and TAB_CALL_HISTORY != 0) {
-            icons.add(R.drawable.ic_clock_vector)
-        }
-
-        return icons
+        return arrayListOf(
+            R.drawable.ic_person_outline_vector,
+            R.drawable.ic_dialpad_vector,
+            R.drawable.ic_clock_vector
+        )
     }
 
     private fun initFragments() {
@@ -381,6 +326,11 @@ class MainActivity : SimpleActivity() {
                     it?.finishActMode()
                 }
                 refreshMenuItems()
+                // the dialpad tab has its own T9 input, so the global search bar is redundant there
+                binding.mainMenu.beGoneIf(position == 1)
+                if (position == 1) {
+                    getDialpadFragment()?.showDialpad()
+                }
             }
         })
 
@@ -394,36 +344,31 @@ class MainActivity : SimpleActivity() {
                     wantedTab = binding.mainTabsHolder.tabCount - 1
                 }
 
+                // open the dialpad tab at launch if the user opted in
+                if (config.openDialPadAtLaunch && !launchedDialer) {
+                    wantedTab = 1
+                    launchedDialer = true
+                }
+
                 binding.mainTabsHolder.getTabAt(wantedTab)?.select()
                 refreshMenuItems()
             }, 100L)
         }
 
-        binding.mainDialpadButton.setOnClickListener {
-            launchDialpad()
-        }
-
         binding.viewPager.onGlobalLayout {
             refreshMenuItems()
-        }
-
-        if (config.openDialPadAtLaunch && !launchedDialer) {
-            launchDialpad()
-            launchedDialer = true
         }
     }
 
     private fun setupTabs() {
         binding.viewPager.adapter = null
         binding.mainTabsHolder.removeAllTabs()
-        tabsList.forEachIndexed { index, value ->
-            if (config.showTabs and value != 0) {
-                binding.mainTabsHolder.newTab().setCustomView(R.layout.bottom_tablayout_item).apply {
-                    customView?.findViewById<ImageView>(R.id.tab_item_icon)?.setImageDrawable(getTabIcon(index))
-                    customView?.findViewById<TextView>(R.id.tab_item_label)?.text = getTabLabel(index)
-                    AutofitHelper.create(customView?.findViewById(R.id.tab_item_label))
-                    binding.mainTabsHolder.addTab(this)
-                }
+        (0 until 3).forEach { index ->
+            binding.mainTabsHolder.newTab().setCustomView(R.layout.bottom_tablayout_item).apply {
+                customView?.findViewById<ImageView>(R.id.tab_item_icon)?.setImageDrawable(getTabIcon(index))
+                customView?.findViewById<TextView>(R.id.tab_item_label)?.text = getTabLabel(index)
+                AutofitHelper.create(customView?.findViewById(R.id.tab_item_label))
+                binding.mainTabsHolder.addTab(this)
             }
         }
 
@@ -444,6 +389,17 @@ class MainActivity : SimpleActivity() {
         )
 
         binding.mainTabsHolder.beGoneIf(binding.mainTabsHolder.tabCount == 1)
+
+        // tapping the already-selected dialpad tab brings the keypad back after it was collapsed
+        binding.mainTabsHolder.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {}
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {
+                if (tab.position == 1) {
+                    getDialpadFragment()?.showDialpad()
+                }
+            }
+        })
         storedShowTabs = config.showTabs
         storedStartNameWithSurname = config.startNameWithSurname
     }
@@ -451,7 +407,7 @@ class MainActivity : SimpleActivity() {
     private fun getTabIcon(position: Int): Drawable {
         val drawableId = when (position) {
             0 -> R.drawable.ic_person_vector
-            1 -> R.drawable.ic_star_vector
+            1 -> R.drawable.ic_dialpad_vector
             else -> R.drawable.ic_clock_vector
         }
 
@@ -461,7 +417,7 @@ class MainActivity : SimpleActivity() {
     private fun getTabLabel(position: Int): String {
         val stringId = when (position) {
             0 -> R.string.contacts_tab
-            1 -> R.string.favorites_tab
+            1 -> R.string.dialpad
             else -> R.string.call_history_tab
         }
 
@@ -486,36 +442,19 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    private fun launchDialpad() {
-        Intent(applicationContext, DialpadActivity::class.java).apply {
-            startActivity(this)
-        }
-    }
-
     fun refreshFragments() {
-        cacheContacts()
+        // load the contacts once into the shared cache, then let the recents/dialpad reuse it
+        // instead of each running its own full contacts query (this was the main startup slowdown)
+        cacheContacts {
+            getRecentsFragment()?.refreshItems()
+            getDialpadFragment()?.refreshContactsFromCache()
+        }
         getContactsFragment()?.refreshItems()
         getFavoritesFragment()?.refreshItems()
-        getRecentsFragment()?.refreshItems()
     }
 
     private fun getAllFragments(): ArrayList<MyViewPagerFragment<*>?> {
-        val showTabs = config.showTabs
-        val fragments = arrayListOf<MyViewPagerFragment<*>?>()
-
-        if (showTabs and TAB_CONTACTS > 0) {
-            fragments.add(getContactsFragment())
-        }
-
-        if (showTabs and TAB_FAVORITES > 0) {
-            fragments.add(getFavoritesFragment())
-        }
-
-        if (showTabs and TAB_CALL_HISTORY > 0) {
-            fragments.add(getRecentsFragment())
-        }
-
-        return fragments
+        return arrayListOf(getContactsFragment(), getDialpadFragment(), getRecentsFragment())
     }
 
     private fun getCurrentFragment(): MyViewPagerFragment<*>? = getAllFragments().getOrNull(binding.viewPager.currentItem)
@@ -524,33 +463,15 @@ class MainActivity : SimpleActivity() {
 
     private fun getFavoritesFragment(): FavoritesFragment? = findViewById(R.id.favorites_fragment)
 
+    private fun getDialpadFragment(): DialpadFragment? = findViewById(R.id.dialpad_fragment)
+
     private fun getRecentsFragment(): RecentsFragment? = findViewById(R.id.recents_fragment)
 
     private fun getDefaultTab(): Int {
-        val showTabsMask = config.showTabs
         return when (config.defaultTab) {
             TAB_LAST_USED -> if (config.lastUsedViewPagerPage < binding.mainTabsHolder.tabCount) config.lastUsedViewPagerPage else 0
             TAB_CONTACTS -> 0
-            TAB_FAVORITES -> if (showTabsMask and TAB_CONTACTS > 0) 1 else 0
-            else -> {
-                if (showTabsMask and TAB_CALL_HISTORY > 0) {
-                    if (showTabsMask and TAB_CONTACTS > 0) {
-                        if (showTabsMask and TAB_FAVORITES > 0) {
-                            2
-                        } else {
-                            1
-                        }
-                    } else {
-                        if (showTabsMask and TAB_FAVORITES > 0) {
-                            1
-                        } else {
-                            0
-                        }
-                    }
-                } else {
-                    0
-                }
-            }
+            else -> binding.mainTabsHolder.tabCount - 1
         }
     }
 
@@ -615,9 +536,10 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    fun cacheContacts() {
+    fun cacheContacts(callback: (() -> Unit)? = null) {
         val privateCursor = getMyContactsCursor(favoritesOnly = false, withPhoneNumbersOnly = true)
-        ContactsHelper(this).getContacts(getAll = true, showOnlyContactsWithNumbers = true) { contacts ->
+        // getAll = false so the shared cache (used by the dialpad too) respects the contact sources selected in Settings
+        ContactsHelper(this).getContacts(showOnlyContactsWithNumbers = true) { contacts ->
             if (SMT_PRIVATE !in config.ignoredContactSources) {
                 val privateContacts = MyContactsContentProvider.getContacts(this, privateCursor)
                 if (privateContacts.isNotEmpty()) {
@@ -630,6 +552,10 @@ class MainActivity : SimpleActivity() {
                 cachedContacts.clear()
                 cachedContacts.addAll(contacts)
             } catch (ignored: Exception) {
+            }
+
+            if (callback != null) {
+                runOnUiThread { callback() }
             }
         }
     }

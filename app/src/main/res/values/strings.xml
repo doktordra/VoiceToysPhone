@@ -6,6 +6,24 @@
 
     <!-- Contacts -->
     <string name="could_not_access_contacts">Could not access your contacts</string>
+    <string name="contact_lists">Contact lists</string>
+    <string name="all_contacts">All contacts</string>
+    <string name="manage_contact_lists">Manage contact lists</string>
+    <string name="grid_view">Grid</string>
+    <string name="combined_view">Combined</string>
+    <string name="sort_alphabetically">Alphabetically</string>
+    <string name="sort_by_recent_communication">Frequent</string>
+    <string name="manage_contact_sources">Contact sources</string>
+    <string name="new_list">New list</string>
+    <string name="rename_list">Rename list</string>
+    <string name="delete_list">Delete list</string>
+    <string name="list_name">List name</string>
+    <string name="delete_list_confirmation">Delete the list \"%s\"? The contacts themselves will not be deleted.</string>
+    <string name="no_lists_yet">No lists yet. Tap + to create one.</string>
+    <string name="edit_list_members">Edit contacts</string>
+    <string name="edit_list_members_title">Contacts in \"%s\"</string>
+    <string name="add_contacts_to_list">Add contacts to list</string>
+    <string name="tap_contacts_to_toggle_membership">Tap contacts to add or remove, then tap OK</string>
 
     <!-- Recents -->
     <string name="no_previous_calls">No previous calls have been found</string>
@@ -16,6 +34,8 @@
     <string name="show_grouped_calls">Show grouped calls</string>
     <string name="clear_call_history">Clear call history</string>
     <string name="show_call_details">Show call details</string>
+    <string name="sort_by_frequency">Most frequently contacted</string>
+    <string name="sort_by_recent">Most recent</string>
 
     <!-- Dialpad -->
     <string name="dialpad">Dialpad</string>

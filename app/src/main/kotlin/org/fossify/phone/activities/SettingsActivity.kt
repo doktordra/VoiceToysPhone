@@ -39,6 +39,7 @@ import org.fossify.commons.models.RadioItem
 import org.fossify.phone.R
 import org.fossify.phone.databinding.ActivitySettingsBinding
 import org.fossify.phone.dialogs.ExportCallHistoryDialog
+import org.fossify.phone.dialogs.FilterContactSourcesDialog
 import org.fossify.phone.dialogs.ManageVisibleTabsDialog
 import org.fossify.phone.extensions.canLaunchAccountsConfiguration
 import org.fossify.phone.extensions.config
@@ -98,6 +99,7 @@ class SettingsActivity : SimpleActivity() {
         setupUseEnglish()
         setupLanguage()
         setupManageBlockedNumbers()
+        setupContactSources()
         setupManageSpeedDial()
         setupChangeDateTimeFormat()
         setupFontSize()
@@ -206,6 +208,12 @@ class SettingsActivity : SimpleActivity() {
         }
     }
 
+    private fun setupContactSources() {
+        binding.settingsContactSourcesHolder.setOnClickListener {
+            FilterContactSourcesDialog(this) {}
+        }
+    }
+
     private fun setupChangeDateTimeFormat() {
         binding.settingsChangeDateTimeFormatHolder.setOnClickListener {
             ChangeDateTimeFormatDialog(this) {}
@@ -240,7 +248,6 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsDefaultTabHolder.setOnClickListener {
             val items = arrayListOf(
                 RadioItem(TAB_CONTACTS, getString(R.string.contacts_tab)),
-                RadioItem(TAB_FAVORITES, getString(R.string.favorites_tab)),
                 RadioItem(TAB_CALL_HISTORY, getString(R.string.call_history_tab)),
                 RadioItem(TAB_LAST_USED, getString(R.string.last_used_tab))
             )
