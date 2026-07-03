@@ -156,4 +156,102 @@ class Config(context: Context) : BaseConfig(context) {
     var contactsSortedByRecents: Boolean
         get() = prefs.getBoolean(CONTACTS_SORTED_BY_RECENTS, false)
         set(value) = prefs.edit().putBoolean(CONTACTS_SORTED_BY_RECENTS, value).apply()
+
+    // custom left-to-right order of the list filter chips, stored as comma-separated group ids
+    var contactListOrder: String
+        get() = prefs.getString(CONTACT_LIST_ORDER, "") ?: ""
+        set(value) = prefs.edit().putString(CONTACT_LIST_ORDER, value).apply()
+
+    // manual account ranking used to deduplicate contacts, stored as comma-separated source identifiers
+    var contactSourcesPriority: String
+        get() = prefs.getString(CONTACT_SOURCES_PRIORITY, "") ?: ""
+        set(value) = prefs.edit().putString(CONTACT_SOURCES_PRIORITY, value).apply()
+
+    // keeps a lightweight foreground service alive so the system is unlikely to kill the app
+    var keepAlive: Boolean
+        get() = prefs.getBoolean(KEEP_ALIVE, false)
+        set(value) = prefs.edit().putBoolean(KEEP_ALIVE, value).apply()
+
+    // when enabled, contacts that exist in several accounts are collapsed to the highest-ranked copy
+    var hideDuplicateContacts: Boolean
+        get() = prefs.getBoolean(HIDE_DUPLICATE_CONTACTS, true)
+        set(value) = prefs.edit().putBoolean(HIDE_DUPLICATE_CONTACTS, value).apply()
+
+    // hides the built-in Favorites filter chip when the user doesn't want it
+    var favoritesChipHidden: Boolean
+        get() = prefs.getBoolean(FAVORITES_CHIP_HIDDEN, false)
+        set(value) = prefs.edit().putBoolean(FAVORITES_CHIP_HIDDEN, value).apply()
+
+    // custom label for the Favorites chip (e.g. an emoji); empty means use the default name
+    var favoritesChipLabel: String
+        get() = prefs.getString(FAVORITES_CHIP_LABEL, "") ?: ""
+        set(value) = prefs.edit().putString(FAVORITES_CHIP_LABEL, value).apply()
+
+    // what a horizontal swipe does: off, switch bottom tabs, or switch contact sections
+    var swipeMode: Int
+        get() = prefs.getInt(SWIPE_MODE, SWIPE_MODE_SECTIONS)
+        set(value) = prefs.edit().putInt(SWIPE_MODE, value).apply()
+
+    // custom per-list chip images, stored as "groupId\turi" entries separated by newlines
+    private var listIcons: String
+        get() = prefs.getString(LIST_ICONS, "") ?: ""
+        set(value) = prefs.edit().putString(LIST_ICONS, value).apply()
+
+    private fun listIconsMap(): LinkedHashMap<Long, String> {
+        val map = LinkedHashMap<Long, String>()
+        listIcons.split("\n").forEach { entry ->
+            val parts = entry.split("\t")
+            if (parts.size == 2) {
+                val id = parts[0].toLongOrNull()
+                if (id != null && parts[1].isNotEmpty()) {
+                    map[id] = parts[1]
+                }
+            }
+        }
+        return map
+    }
+
+    fun getListIcon(groupId: Long): String = listIconsMap()[groupId] ?: ""
+
+    fun setListIcon(groupId: Long, uri: String?) {
+        val map = listIconsMap()
+        if (uri.isNullOrEmpty()) {
+            map.remove(groupId)
+        } else {
+            map[groupId] = uri
+        }
+        listIcons = map.entries.joinToString("\n") { "${it.key}\t${it.value}" }
+    }
+
+    // custom per-list accent colours, stored as "groupId\tcolorInt" entries separated by newlines
+    private var listColors: String
+        get() = prefs.getString(LIST_COLORS, "") ?: ""
+        set(value) = prefs.edit().putString(LIST_COLORS, value).apply()
+
+    private fun listColorsMap(): LinkedHashMap<Long, Int> {
+        val map = LinkedHashMap<Long, Int>()
+        listColors.split("\n").forEach { entry ->
+            val parts = entry.split("\t")
+            if (parts.size == 2) {
+                val id = parts[0].toLongOrNull()
+                val color = parts[1].toIntOrNull()
+                if (id != null && color != null) {
+                    map[id] = color
+                }
+            }
+        }
+        return map
+    }
+
+    fun getListColor(groupId: Long): Int? = listColorsMap()[groupId]
+
+    fun setListColor(groupId: Long, color: Int?) {
+        val map = listColorsMap()
+        if (color == null) {
+            map.remove(groupId)
+        } else {
+            map[groupId] = color
+        }
+        listColors = map.entries.joinToString("\n") { "${it.key}\t${it.value}" }
+    }
 }

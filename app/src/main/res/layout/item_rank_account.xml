@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rank_account_row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="@dimen/small_margin"
+    android:paddingBottom="@dimen/small_margin">
+
+    <org.fossify.commons.views.MyAppCompatCheckbox
+        android:id="@+id/rank_account_checkbox"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="@null"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingStart="@dimen/small_margin"
+        android:textSize="@dimen/bigger_text_size" />
+
+    <ImageView
+        android:id="@+id/rank_account_move_up"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/ripple_all_corners"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="@dimen/small_margin"
+        android:src="@drawable/ic_chevron_up_vector" />
+
+    <ImageView
+        android:id="@+id/rank_account_move_down"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="@dimen/small_margin"
+        android:background="@drawable/ripple_all_corners"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="@dimen/small_margin"
+        android:src="@drawable/ic_chevron_down_vector" />
+</LinearLayout>

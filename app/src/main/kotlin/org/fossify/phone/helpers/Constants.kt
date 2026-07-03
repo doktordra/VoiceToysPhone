@@ -22,7 +22,21 @@ const val CONTACTS_VIEW_TYPE = "contacts_view_type"
 const val RECENTS_SORTED_BY_FREQUENCY = "recents_sorted_by_frequency"
 const val SELECTED_CONTACT_GROUP_ID = "selected_contact_group_id"
 const val CONTACTS_SORTED_BY_RECENTS = "contacts_sorted_by_recents"
-
+const val CONTACT_LIST_ORDER = "contact_list_order"
+const val CONTACT_SOURCES_PRIORITY = "contact_sources_priority"
+const val KEEP_ALIVE = "keep_alive"
+const val HIDE_DUPLICATE_CONTACTS = "hide_duplicate_contacts"
+const val LIST_ICONS = "list_icons"
+const val LIST_COLORS = "list_colors"
+const val FAVORITES_CHIP_HIDDEN = "favorites_chip_hidden"
+const val FAVORITES_CHIP_LABEL = "favorites_chip_label"
+const val SWIPE_MODE = "swipe_mode"
+// horizontal swipe does nothing
+const val SWIPE_MODE_OFF = 0
+// horizontal swipe moves between the bottom tabs (Contacts / Dialpad / Call history)
+const val SWIPE_MODE_TABS = 1
+// horizontal swipe moves between contact sections (All / Favorites / lists) on the Contacts tab
+const val SWIPE_MODE_SECTIONS = 2
 // special value meaning "show contacts from all groups/lists"
 const val ALL_CONTACTS_GROUP_ID = -1L
 

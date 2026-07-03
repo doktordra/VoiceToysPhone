@@ -34,6 +34,7 @@ import org.fossify.phone.extensions.areMultipleSIMsAvailable
 import org.fossify.phone.extensions.callContactWithSim
 import org.fossify.phone.extensions.config
 import org.fossify.phone.extensions.startContactDetailsIntent
+import org.fossify.phone.helpers.AvatarHelper
 import org.fossify.phone.interfaces.RefreshItemsListener
 import java.util.Collections
 
@@ -401,7 +402,12 @@ class ContactsAdapter(
                 setTextColor(textColor)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSize)
 
-                val name = contact.getNameToDisplay()
+                // in the grid, when there is no photo the tile shows the first name, so the label below only needs the surname;
+                // when a custom photo is shown, the label keeps the full name below the tile
+                val displayName = contact.getNameToDisplay()
+                val isGrid = viewType == VIEW_TYPE_GRID
+                val hasPhoto = contact.photoUri.isNotEmpty()
+                val name = if (isGrid && !hasPhoto) AvatarHelper.surnamePart(displayName).ifEmpty { displayName } else displayName
                 text = if (textToHighlight.isEmpty()) {
                     name
                 } else {
@@ -447,7 +453,13 @@ class ContactsAdapter(
             }
 
             if (!activity.isDestroyed) {
-                SimpleContactsHelper(root.context).loadContactImage(contact.photoUri, itemContactImage, contact.getNameToDisplay())
+                val displayName = contact.getNameToDisplay()
+                val tileText = if (viewType == VIEW_TYPE_GRID && contact.photoUri.isEmpty()) {
+                    AvatarHelper.firstNamePart(displayName)
+                } else {
+                    null
+                }
+                AvatarHelper(root.context).loadContactAvatar(contact.photoUri, itemContactImage, displayName, tileText)
             }
         }
     }

@@ -5,6 +5,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Contact lists as filter chips (Favorites + custom lists) with a horizontal chip bar
+- Create, rename, delete and reorder custom contact lists directly from the chip bar
+- Edit list members inline (turns the contact list into a checkable picker)
+- Custom image per list chip (pick a logo from the gallery, shown icon-only)
+- Custom label/emoji for the Favorites chip, plus the ability to hide/show it
+- Combined view: contacts shown as a grid of avatar tiles; long names wrap to two balanced lines
+- Grid and combined tiles use two-initial rounded-square avatars
+- Swipe left/right on the Contacts screen to move between lists
+- "Keep running in background" option (foreground service + boot restart) for reliable calls/notifications
+- Unified Accounts manager: enable/disable sources, rank them, add an account, hide duplicates
+- Hide duplicate contacts across accounts (keeps the copy from the highest-ranked source)
+- Sort contacts by most-frequently-called, with a proportional frequency scrollbar
+- Settings gained About, Contact sources and a Hide-duplicates toggle
+
+### Changed
+- Replaced the three-dot overflow with a gear icon that opens Settings
+- Moved "Clear call history" to a toolbar icon on the History tab
+- Disabled ViewPager paging swipe; Dialpad and History are reached via the tab bar only
+- Widened the alphabet/frequency fast-scroller touch area
+- Separated the combined-view tile board from the list (top margin + shadow) and lifted the tab bar
 
 ## [1.11.1] - 2026-02-01
 ### Changed

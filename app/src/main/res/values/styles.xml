@@ -21,4 +21,10 @@
         <item name="android:layout_centerHorizontal">true</item>
     </style>
 
+    <!-- larger letter shown in the fast-scroller bubble/thumb -->
+    <style name="FastScrollerThumbTextAppearance" parent="@android:style/TextAppearance">
+        <item name="android:textSize">32sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
 </resources>

@@ -145,6 +145,51 @@
             </RelativeLayout>
 
             <RelativeLayout
+                android:id="@+id/settings_hide_duplicates_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_hide_duplicates"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/hide_duplicate_contacts" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_sort_by_holder"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_sort_by_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sort_by" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_battery_optimization_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_battery_optimization"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ignore_battery_optimization" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
                 android:id="@+id/settings_change_date_time_format_holder"
                 style="@style/SettingsHolderTextViewOneLinerStyle"
                 android:layout_width="match_parent"
@@ -258,6 +303,29 @@
                     android:layout_height="wrap_content"
                     android:layout_below="@+id/settings_default_tab_label"
                     tools:text="@string/last_used_tab" />
+
+            </RelativeLayout>
+
+            <RelativeLayout
+                android:id="@+id/settings_swipe_action_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_swipe_action_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/swipe_action" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_swipe_action"
+                    style="@style/SettingsTextValueStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/settings_swipe_action_label"
+                    tools:text="@string/swipe_sections" />
 
             </RelativeLayout>
 
@@ -494,6 +562,28 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/import_call_history" />
+
+            </RelativeLayout>
+
+            <TextView
+                android:id="@+id/settings_about_section_label"
+                style="@style/SettingsSectionLabelStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/about" />
+
+            <RelativeLayout
+                android:id="@+id/settings_about_holder"
+                style="@style/SettingsHolderTextViewOneLinerStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_about_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/about" />
 
             </RelativeLayout>
         </LinearLayout>

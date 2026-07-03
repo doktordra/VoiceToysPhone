@@ -18,7 +18,7 @@
         android:scrollbars="none"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <org.fossify.commons.views.MyViewPager
+        <org.fossify.phone.views.SwipeLockViewPager
             android:id="@+id/view_pager"
             android:layout_width="match_parent"
             android:layout_height="0dp"
@@ -29,6 +29,7 @@
             android:id="@+id/main_tabs_holder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:elevation="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:tabGravity="fill"
             app:tabIndicator="@null"

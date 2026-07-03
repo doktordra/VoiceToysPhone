@@ -364,6 +364,8 @@ class DialpadFragment(context: Context, attributeSet: AttributeSet) :
             convertedName.contains(text, true) || contact.doesContainPhoneNumber(text)
         }.sortedWith(
             compareBy<Pair<Contact, String>>(
+                // a contact whose whole T9 name equals the typed digits (e.g. "J" -> 5) comes first
+                { (_, convertedName) -> !convertedName.equals(text, true) },
                 { (_, convertedName) -> !convertedName.startsWith(text, true) },
                 { (_, convertedName) -> !convertedName.contains(text, true) },
                 { (contact, _) -> !contact.doesContainPhoneNumber(text) }
@@ -477,23 +479,43 @@ class DialpadFragment(context: Context, attributeSet: AttributeSet) :
     private fun setupCharClick(view: View, char: Char, longClickable: Boolean = true) {
         view.isClickable = true
         view.isLongClickable = true
+        var typed = false
+        var longPressFired = false
         view.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    typed = true
+                    longPressFired = false
                     dialpadPressed(char, view)
                     startDialpadTone(char)
                     if (longClickable) {
                         longPressHandler.removeCallbacksAndMessages(null)
                         longPressHandler.postDelayed({
+                            longPressFired = true
                             performLongClick(view, char)
                         }, longPressTimeout)
                     }
                 }
 
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                MotionEvent.ACTION_UP -> {
                     stopDialpadTone(char)
                     if (longClickable) {
                         longPressHandler.removeCallbacksAndMessages(null)
+                    }
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    stopDialpadTone(char)
+                    if (longClickable) {
+                        longPressHandler.removeCallbacksAndMessages(null)
+                    }
+                    // a cancel here means the ViewPager took over for a horizontal page swipe,
+                    // so undo the digit that was inserted on ACTION_DOWN instead of typing it
+                    if (typed && !longPressFired) {
+                        binding.dialpadInput.dispatchKeyEvent(
+                            binding.dialpadInput.getKeyEvent(KeyEvent.KEYCODE_DEL)
+                        )
+                        typed = false
                     }
                 }
 

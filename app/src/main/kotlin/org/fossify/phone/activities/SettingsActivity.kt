@@ -1,8 +1,12 @@
 package org.fossify.phone.activities
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.Menu
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.serialization.SerializationException
@@ -25,6 +29,9 @@ import org.fossify.commons.helpers.FONT_SIZE_EXTRA_LARGE
 import org.fossify.commons.helpers.FONT_SIZE_LARGE
 import org.fossify.commons.helpers.FONT_SIZE_MEDIUM
 import org.fossify.commons.helpers.FONT_SIZE_SMALL
+import org.fossify.commons.helpers.LICENSE_AUTOFITTEXTVIEW
+import org.fossify.commons.helpers.LICENSE_GLIDE
+import org.fossify.commons.helpers.LICENSE_INDICATOR_FAST_SCROLL
 import org.fossify.commons.helpers.NavigationIcon
 import org.fossify.commons.helpers.ON_CLICK_CALL_CONTACT
 import org.fossify.commons.helpers.ON_CLICK_VIEW_CONTACT
@@ -35,17 +42,24 @@ import org.fossify.commons.helpers.TAB_LAST_USED
 import org.fossify.commons.helpers.isNougatPlus
 import org.fossify.commons.helpers.isQPlus
 import org.fossify.commons.helpers.isTiramisuPlus
+import org.fossify.commons.models.FAQItem
 import org.fossify.commons.models.RadioItem
+import org.fossify.phone.BuildConfig
 import org.fossify.phone.R
 import org.fossify.phone.databinding.ActivitySettingsBinding
 import org.fossify.phone.dialogs.ExportCallHistoryDialog
-import org.fossify.phone.dialogs.FilterContactSourcesDialog
+import org.fossify.phone.dialogs.ChangeSortingDialog
 import org.fossify.phone.dialogs.ManageVisibleTabsDialog
+import org.fossify.phone.dialogs.RankAccountsDialog
 import org.fossify.phone.extensions.canLaunchAccountsConfiguration
 import org.fossify.phone.extensions.config
 import org.fossify.phone.extensions.launchAccountsConfiguration
 import org.fossify.phone.helpers.RecentsHelper
+import org.fossify.phone.helpers.SWIPE_MODE_OFF
+import org.fossify.phone.helpers.SWIPE_MODE_TABS
+import org.fossify.phone.helpers.SWIPE_MODE_SECTIONS
 import org.fossify.phone.models.RecentCall
+import org.fossify.phone.services.KeepAliveService
 import java.util.Locale
 import kotlin.system.exitProcess
 
@@ -100,11 +114,16 @@ class SettingsActivity : SimpleActivity() {
         setupLanguage()
         setupManageBlockedNumbers()
         setupContactSources()
+        setupHideDuplicates()
+        setupAbout()
+        setupSortBy()
+        setupBatteryOptimization()
         setupManageSpeedDial()
         setupChangeDateTimeFormat()
         setupFontSize()
         setupManageShownTabs()
         setupDefaultTab()
+        setupSwipeAction()
         setupOnContactClick()
         setupDialPadOpen()
         setupGroupSubsequentCalls()
@@ -128,7 +147,8 @@ class SettingsActivity : SimpleActivity() {
                 settingsStartupLabel,
                 settingsCallsLabel,
                 settingsDialpadSectionLabel,
-                settingsMigrationSectionLabel
+                settingsMigrationSectionLabel,
+                settingsAboutSectionLabel
             ).forEach {
                 it.setTextColor(getProperPrimaryColor())
             }
@@ -210,7 +230,76 @@ class SettingsActivity : SimpleActivity() {
 
     private fun setupContactSources() {
         binding.settingsContactSourcesHolder.setOnClickListener {
-            FilterContactSourcesDialog(this) {}
+            RankAccountsDialog(this) {}
+        }
+    }
+
+    private fun setupHideDuplicates() {
+        binding.settingsHideDuplicates.isChecked = config.hideDuplicateContacts
+        binding.settingsHideDuplicatesHolder.setOnClickListener {
+            binding.settingsHideDuplicates.toggle()
+            config.hideDuplicateContacts = binding.settingsHideDuplicates.isChecked
+        }
+    }
+
+    private fun setupAbout() {
+        binding.settingsAboutHolder.setOnClickListener {
+            val licenses = LICENSE_GLIDE or LICENSE_INDICATOR_FAST_SCROLL or LICENSE_AUTOFITTEXTVIEW
+            val faqItems = arrayListOf(
+                FAQItem(R.string.faq_1_title, R.string.faq_1_text),
+                FAQItem(R.string.faq_2_title, R.string.faq_2_text),
+                FAQItem(R.string.faq_3_title, R.string.faq_3_text),
+                FAQItem(R.string.faq_9_title_commons, R.string.faq_9_text_commons)
+            )
+
+            if (!resources.getBoolean(R.bool.hide_google_relations)) {
+                faqItems.add(FAQItem(R.string.faq_2_title_commons, R.string.faq_2_text_commons))
+                faqItems.add(FAQItem(R.string.faq_6_title_commons, R.string.faq_6_text_commons))
+            }
+
+            startAboutActivity(R.string.app_name, licenses, BuildConfig.VERSION_NAME, faqItems, true)
+        }
+    }
+
+    private fun setupSortBy() {
+        binding.settingsSortByHolder.setOnClickListener {
+            ChangeSortingDialog(this) {}
+        }
+    }
+
+    @SuppressLint("BatteryLife")
+    private fun setupBatteryOptimization() {
+        binding.settingsBatteryOptimization.isChecked = config.keepAlive
+        binding.settingsBatteryOptimizationHolder.setOnClickListener {
+            binding.settingsBatteryOptimization.toggle()
+            val enabled = binding.settingsBatteryOptimization.isChecked
+            config.keepAlive = enabled
+            if (enabled) {
+                KeepAliveService.start(this)
+                requestIgnoreBatteryOptimization()
+            } else {
+                KeepAliveService.stop(this)
+            }
+        }
+    }
+
+    @SuppressLint("BatteryLife")
+    private fun requestIgnoreBatteryOptimization() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            return
+        }
+
+        try {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            } catch (ignored: Exception) {
+            }
         }
     }
 
@@ -258,6 +347,30 @@ class SettingsActivity : SimpleActivity() {
             }
         }
     }
+
+    private fun setupSwipeAction() {
+        binding.settingsSwipeAction.text = getSwipeActionText()
+        binding.settingsSwipeActionHolder.setOnClickListener {
+            val items = arrayListOf(
+                RadioItem(SWIPE_MODE_OFF, getString(R.string.swipe_off)),
+                RadioItem(SWIPE_MODE_TABS, getString(R.string.swipe_tabs)),
+                RadioItem(SWIPE_MODE_SECTIONS, getString(R.string.swipe_sections))
+            )
+
+            RadioGroupDialog(this@SettingsActivity, items, config.swipeMode) {
+                config.swipeMode = it as Int
+                binding.settingsSwipeAction.text = getSwipeActionText()
+            }
+        }
+    }
+
+    private fun getSwipeActionText() = getString(
+        when (config.swipeMode) {
+            SWIPE_MODE_OFF -> R.string.swipe_off
+            SWIPE_MODE_TABS -> R.string.swipe_tabs
+            else -> R.string.swipe_sections
+        }
+    )
 
     private fun getDefaultTabText() = getString(
         when (baseConfig.defaultTab) {

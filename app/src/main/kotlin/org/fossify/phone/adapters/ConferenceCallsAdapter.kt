@@ -14,6 +14,7 @@ import org.fossify.phone.R
 import org.fossify.phone.activities.SimpleActivity
 import org.fossify.phone.databinding.ItemConferenceCallBinding
 import org.fossify.phone.extensions.hasCapability
+import org.fossify.phone.helpers.AvatarHelper
 import org.fossify.phone.helpers.getCallContact
 
 class ConferenceCallsAdapter(
@@ -52,13 +53,10 @@ class ConferenceCallsAdapter(
                     root.post {
                         itemConferenceCallName.text = callContact.name.ifEmpty { itemView.context.getString(R.string.unknown_caller) }
                         itemConferenceCallName.setTextColor(textColor)
-                        val contactDrawable = activity.getDrawable(R.drawable.ic_person_vector)
-                        contactDrawable?.applyColorFilter(textColor)
-                        SimpleContactsHelper(activity).loadContactImage(
+                        AvatarHelper(activity).loadContactAvatar(
                             callContact.photoUri,
                             itemConferenceCallImage,
-                            callContact.name,
-                            contactDrawable
+                            callContact.name
                         )
                     }
                 }

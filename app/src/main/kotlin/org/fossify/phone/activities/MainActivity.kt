@@ -8,12 +8,14 @@ import android.content.res.Configuration
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.provider.Settings
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.viewpager.widget.ViewPager
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
@@ -33,6 +35,7 @@ import org.fossify.phone.adapters.ViewPagerAdapter
 import org.fossify.phone.databinding.ActivityMainBinding
 import org.fossify.phone.dialogs.ChangeSortingDialog
 import org.fossify.phone.dialogs.FilterContactSourcesDialog
+import org.fossify.phone.dialogs.RankAccountsDialog
 import org.fossify.phone.extensions.clearMissedCalls
 import org.fossify.phone.extensions.config
 import org.fossify.phone.extensions.handleFullScreenNotificationsPermission
@@ -45,7 +48,10 @@ import org.fossify.phone.fragments.RecentsFragment
 import org.fossify.phone.helpers.ALL_CONTACTS_GROUP_ID
 import org.fossify.phone.helpers.OPEN_DIAL_PAD_AT_LAUNCH
 import org.fossify.phone.helpers.RecentsHelper
+import org.fossify.phone.helpers.SWIPE_MODE_SECTIONS
+import org.fossify.phone.helpers.SWIPE_MODE_TABS
 import org.fossify.phone.models.Events
+import org.fossify.phone.services.KeepAliveService
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
@@ -60,6 +66,23 @@ class MainActivity : SimpleActivity() {
     private var storedFontSize = 0
     private var storedStartNameWithSurname = false
     var cachedContacts = ArrayList<Contact>()
+
+    private var pendingIconGroupId = 0L
+    private val pickListIconLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (ignored: Exception) {
+            }
+            config.setListIcon(pendingIconGroupId, uri.toString())
+            getContactsFragment()?.refreshFilterChips()
+        }
+    }
+
+    fun pickListIcon(groupId: Long) {
+        pendingIconGroupId = groupId
+        pickListIconLauncher.launch(arrayOf("image/*"))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,6 +101,10 @@ class MainActivity : SimpleActivity() {
 
         setupTabs()
         Contact.sorting = config.sorting
+
+        if (config.keepAlive) {
+            KeepAliveService.start(this)
+        }
     }
 
     override fun onResume() {
@@ -164,13 +191,20 @@ class MainActivity : SimpleActivity() {
         val currentFragment = getCurrentFragment()
         binding.mainMenu.requireToolbar().menu.apply {
             findItem(R.id.clear_call_history).isVisible = currentFragment == getRecentsFragment()
-            findItem(R.id.sort).isVisible = currentFragment == getContactsFragment()
-            findItem(R.id.filter).isVisible = currentFragment == getContactsFragment()
-            findItem(R.id.create_new_contact).isVisible = currentFragment == getContactsFragment()
             findItem(R.id.change_view_type).isVisible = false
             findItem(R.id.column_count).isVisible = false
             findItem(R.id.more_apps_from_us).isVisible = !resources.getBoolean(R.bool.hide_google_relations)
         }
+    }
+
+    // shows the active tab's context as the search-field hint, tying the top bar to the screen below
+    private fun updateSearchHintForTab() {
+        val hintRes = if (getCurrentFragment() == getRecentsFragment()) {
+            R.string.search
+        } else {
+            R.string.search_contacts
+        }
+        binding.mainMenu.updateHintText(getString(hintRes))
     }
 
     private fun setupOptionsMenu() {
@@ -192,14 +226,10 @@ class MainActivity : SimpleActivity() {
             requireToolbar().setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
                     R.id.clear_call_history -> clearCallHistory()
-                    R.id.create_new_contact -> launchCreateNewContactIntent()
-                    R.id.sort -> showSortingDialog(showCustomSorting = getCurrentFragment() is FavoritesFragment)
-                    R.id.filter -> showFilterDialog()
                     R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
                     R.id.settings -> launchSettings()
                     R.id.change_view_type -> changeViewType()
                     R.id.column_count -> changeColumnCount()
-                    R.id.about -> launchAbout()
                     else -> return@setOnMenuItemClickListener false
                 }
                 return@setOnMenuItemClickListener true
@@ -315,6 +345,23 @@ class MainActivity : SimpleActivity() {
 
     private fun initFragments() {
         binding.viewPager.offscreenPageLimit = 2
+        // the horizontal swipe behaviour is configurable: off, switch tabs (normal paging),
+        // or switch contact sections (a fling on the Contacts page moves between lists)
+        val swipeMode = config.swipeMode
+        binding.viewPager.swipeEnabled = swipeMode == SWIPE_MODE_TABS
+        binding.viewPager.onHorizontalSwipe = if (swipeMode == SWIPE_MODE_SECTIONS) {
+            { forward ->
+                if (getCurrentFragment() == getContactsFragment()) {
+                    getContactsFragment()?.onHorizontalSwipe(forward)
+                }
+            }
+        } else {
+            null
+        }
+        // a subtle fade makes tab changes feel smoother than the default hard cut
+        binding.viewPager.setPageTransformer(false) { page, position ->
+            page.alpha = 1f - Math.abs(position).coerceAtMost(1f) * 0.3f
+        }
         binding.viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
             override fun onPageScrollStateChanged(state: Int) {}
 
@@ -326,11 +373,15 @@ class MainActivity : SimpleActivity() {
                     it?.finishActMode()
                 }
                 refreshMenuItems()
+                // don't carry a search query over to another screen
+                closeSearchBar()
                 // the dialpad tab has its own T9 input, so the global search bar is redundant there
                 binding.mainMenu.beGoneIf(position == 1)
                 if (position == 1) {
                     getDialpadFragment()?.showDialpad()
                 }
+                // surface the active tab in the top bar so it feels connected to the content below
+                updateSearchHintForTab()
             }
         })
 
@@ -459,6 +510,12 @@ class MainActivity : SimpleActivity() {
 
     private fun getCurrentFragment(): MyViewPagerFragment<*>? = getAllFragments().getOrNull(binding.viewPager.currentItem)
 
+    fun closeSearchBar() {
+        if (binding.mainMenu.isSearchOpen) {
+            binding.mainMenu.closeSearch()
+        }
+    }
+
     private fun getContactsFragment(): ContactsFragment? = findViewById(R.id.contacts_fragment)
 
     private fun getFavoritesFragment(): FavoritesFragment? = findViewById(R.id.favorites_fragment)
@@ -533,6 +590,12 @@ class MainActivity : SimpleActivity() {
                     getCurrentFragment()?.onSearchQueryChanged(binding.mainMenu.getCurrentQuery())
                 }
             }
+        }
+    }
+
+    private fun showRankAccountsDialog() {
+        RankAccountsDialog(this) {
+            getContactsFragment()?.refreshItems()
         }
     }
 

@@ -17,12 +17,15 @@
             android:visibility="gone">
 
             <LinearLayout
+                android:id="@+id/contacts_header_frame"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/small_margin"
+                android:layout_marginEnd="@dimen/small_margin"
+                android:background="@drawable/combined_contacts_frame"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="@dimen/small_margin"
-                android:paddingEnd="@dimen/small_margin">
+                android:padding="@dimen/tiny_margin">
 
                 <LinearLayout
                     android:id="@+id/contacts_order_toggle"
@@ -55,7 +58,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="@dimen/normal_margin"
+                    android:layout_marginStart="@dimen/tiny_margin"
                     android:background="@drawable/ripple_all_corners"
                     android:clickable="true"
                     android:focusable="true"
@@ -112,7 +115,7 @@
             android:id="@+id/fragment_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_above="@+id/combined_contacts_holder"
+            android:layout_above="@+id/add_to_list_button"
             android:layout_below="@+id/contacts_header"
             android:clipToPadding="false"
             android:layoutAnimation="@anim/layout_animation"
@@ -122,13 +125,29 @@
 
         <com.reddit.indicatorfastscroll.FastScrollerView
             android:id="@+id/letter_fastscroller"
-            android:layout_width="64dp"
+            android:layout_width="48dp"
             android:layout_height="wrap_content"
             android:layout_alignTop="@+id/fragment_list"
             android:layout_alignBottom="@+id/fragment_list"
             android:layout_alignParentEnd="true"
             android:paddingTop="@dimen/small_margin"
             android:paddingBottom="@dimen/small_margin" />
+
+        <ImageView
+            android:id="@+id/frequency_indicator"
+            android:layout_width="44dp"
+            android:layout_height="wrap_content"
+            android:layout_alignTop="@+id/fragment_list"
+            android:layout_alignBottom="@+id/fragment_list"
+            android:layout_alignParentEnd="true"
+            android:contentDescription="@null"
+            android:paddingStart="32dp"
+            android:paddingTop="@dimen/normal_margin"
+            android:paddingEnd="@dimen/small_margin"
+            android:paddingBottom="@dimen/normal_margin"
+            android:scaleType="fitXY"
+            android:src="@drawable/ic_frequency_wedge"
+            android:visibility="gone" />
 
         <com.reddit.indicatorfastscroll.FastScrollerThumbView
             android:id="@+id/letter_fastscroller_thumb"
@@ -137,18 +156,21 @@
             android:layout_alignTop="@+id/letter_fastscroller"
             android:layout_alignBottom="@+id/letter_fastscroller"
             android:layout_marginEnd="@dimen/activity_margin"
-            android:layout_toStartOf="@+id/letter_fastscroller" />
+            android:layout_toStartOf="@+id/letter_fastscroller"
+            android:textAppearance="@style/FastScrollerThumbTextAppearance" />
 
         <GridLayout
             android:id="@+id/combined_contacts_holder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_above="@+id/add_to_list_button"
+            android:layout_above="@+id/filter_chips_scroll"
             android:layout_marginStart="@dimen/small_margin"
+            android:layout_marginTop="@dimen/normal_margin"
             android:layout_marginEnd="@dimen/small_margin"
             android:layout_marginBottom="@dimen/small_margin"
             android:background="@drawable/combined_contacts_frame"
             android:columnCount="4"
+            android:elevation="6dp"
             android:paddingStart="@dimen/small_margin"
             android:paddingTop="@dimen/small_margin"
             android:paddingEnd="@dimen/small_margin"
@@ -159,7 +181,7 @@
             android:id="@+id/add_to_list_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_above="@+id/filter_chips_scroll"
+            android:layout_above="@+id/combined_contacts_holder"
             android:layout_marginStart="@dimen/small_margin"
             android:layout_marginEnd="@dimen/small_margin"
             android:layout_marginBottom="@dimen/small_margin"

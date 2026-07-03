@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/activity_margin"
+        android:paddingTop="@dimen/activity_margin"
+        android:paddingEnd="@dimen/activity_margin"
+        android:paddingBottom="@dimen/activity_margin">
+
+        <LinearLayout
+            android:id="@+id/rank_accounts_holder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <org.fossify.commons.views.MyAppCompatCheckbox
+            android:id="@+id/rank_accounts_hide_duplicates"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/medium_margin"
+            android:background="@null"
+            android:paddingStart="@dimen/small_margin"
+            android:text="@string/hide_duplicate_contacts"
+            android:textSize="@dimen/bigger_text_size" />
+
+        <org.fossify.commons.views.MyTextView
+            android:id="@+id/rank_accounts_add"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/small_margin"
+            android:background="@drawable/ripple_all_corners"
+            android:clickable="true"
+            android:drawablePadding="@dimen/medium_margin"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingStart="@dimen/small_margin"
+            android:paddingTop="@dimen/medium_margin"
+            android:paddingEnd="@dimen/small_margin"
+            android:paddingBottom="@dimen/medium_margin"
+            android:text="@string/add_account"
+            android:textSize="@dimen/bigger_text_size"
+            app:drawableStartCompat="@drawable/ic_plus_vector"
+            xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+    </LinearLayout>
+</ScrollView>

@@ -1,13 +1,24 @@
 package org.fossify.phone.fragments
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.provider.CallLog
 import android.util.AttributeSet
+import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.widget.GridLayout
 import android.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
+import org.fossify.commons.dialogs.ColorPickerDialog
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.addContactsToGroup
 import org.fossify.commons.extensions.areSystemAnimationsEnabled
@@ -44,6 +55,7 @@ import org.fossify.commons.helpers.VIEW_TYPE_GRID
 import org.fossify.commons.helpers.VIEW_TYPE_LIST
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.commons.helpers.getProperText
+import org.fossify.commons.helpers.letterBackgroundColors
 import org.fossify.commons.models.contacts.Contact
 import org.fossify.commons.models.contacts.Group
 import org.fossify.commons.views.MyGridLayoutManager
@@ -63,9 +75,11 @@ import org.fossify.phone.extensions.setupWithContacts
 import org.fossify.phone.extensions.startCallWithConfirmationCheck
 import org.fossify.phone.extensions.startContactDetailsIntent
 import org.fossify.phone.helpers.ALL_CONTACTS_GROUP_ID
+import org.fossify.phone.helpers.AvatarHelper
 import org.fossify.phone.helpers.FAVORITES_GROUP_ID
 import org.fossify.phone.helpers.VIEW_TYPE_COMBINED
 import org.fossify.phone.interfaces.RefreshItemsListener
+import kotlin.math.abs
 
 class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPagerFragment<MyViewPagerFragment.LettersInnerBinding>(context, attributeSet),
     RefreshItemsListener {
@@ -113,6 +127,66 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
         }
 
         setupContactsHeader()
+        setupFrequencyIndicator()
+    }
+
+    // called by MainActivity when the user swipes horizontally anywhere on the Contacts page;
+    // the ViewPager's own paging swipe is off, so this moves between contact lists instead
+    fun onHorizontalSwipe(forward: Boolean) {
+        switchToAdjacentList(forward)
+    }
+
+    // cycles through All contacts -> Favorites -> each list, wrapping around at the ends
+    private fun switchToAdjacentList(forward: Boolean) {
+        val ids = buildList {
+            add(ALL_CONTACTS_GROUP_ID)
+            if (!context.config.favoritesChipHidden) {
+                add(FAVORITES_GROUP_ID)
+            }
+            orderedGroups().forEach { group -> group.id?.let { add(it) } }
+        }
+        if (ids.size < 2) {
+            return
+        }
+
+        if (isEditingListMembers) {
+            exitEditListMembersMode()
+        }
+
+        val currentIndex = ids.indexOf(context.config.selectedContactGroupId).coerceAtLeast(0)
+        val nextIndex = if (forward) {
+            (currentIndex + 1) % ids.size
+        } else {
+            (currentIndex - 1 + ids.size) % ids.size
+        }
+
+        context.config.selectedContactGroupId = ids[nextIndex]
+        setupFilterChips()
+        gotContacts(getFilteredContacts())
+    }
+
+    // in Frequent mode the A-Z scroller is meaningless, so the tapering wedge doubles as a
+    // proportional scrollbar: dragging it scrolls the list from most to least contacted
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupFrequencyIndicator() {
+        binding.frequencyIndicator.setOnTouchListener { view, event ->
+            val itemCount = binding.fragmentList.adapter?.itemCount ?: 0
+            if (itemCount == 0) {
+                return@setOnTouchListener false
+            }
+
+            when (event.action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    val usableHeight = (view.height - view.paddingTop - view.paddingBottom).coerceAtLeast(1)
+                    val fraction = ((event.y - view.paddingTop) / usableHeight).coerceIn(0f, 1f)
+                    val target = (fraction * (itemCount - 1)).toInt()
+                    (binding.fragmentList.layoutManager as? MyLinearLayoutManager)?.scrollToPositionWithOffset(target, 0)
+                    true
+                }
+
+                else -> false
+            }
+        }
     }
 
     override fun setupColors(textColor: Int, primaryColor: Int, properPrimaryColor: Int) {
@@ -130,6 +204,8 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
 
         binding.addToListIcon.applyColorFilter(textColor)
         binding.addToListLabel.setTextColor(textColor)
+        binding.contactsHeaderFrame.background?.mutate()?.applyColorFilter(textColor.adjustAlpha(0.2f))
+        binding.frequencyIndicator.applyColorFilter(properPrimaryColor.adjustAlpha(0.5f))
         updateOrderToggle()
         updateViewTypeToggle()
         setupFilterChips()
@@ -168,9 +244,14 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
 
     // returns the contacts to display after applying the selected favorites/list filter and sorting
     private fun getFilteredContacts(): ArrayList<Contact> {
-        // while picking members, always offer the full contact list so any of them can be ticked
+        // while picking members, offer the full contact list (still honouring the current sort order)
         if (isEditingListMembers) {
-            return ArrayList(allContacts)
+            val all = dedupBySourcePriority(ArrayList(allContacts))
+            return if (context.config.contactsSortedByRecents && recencyMap != null) {
+                sortByRecents(all)
+            } else {
+                all
+            }
         }
 
         val groupId = context.config.selectedContactGroupId
@@ -180,11 +261,52 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
             else -> allContacts.filter { contact -> contact.groups.any { it.id == groupId } } as ArrayList<Contact>
         }
 
+        val deduped = dedupBySourcePriority(filtered)
         return if (context.config.contactsSortedByRecents && recencyMap != null) {
-            sortByRecents(filtered)
+            sortByRecents(deduped)
         } else {
-            filtered
+            deduped
         }
+    }
+
+    // when the same person exists in several accounts, keep only the copy from the highest-ranked source
+    // (see the manual account ranking). contacts are considered the same when they share a phone number.
+    private fun dedupBySourcePriority(contacts: ArrayList<Contact>): ArrayList<Contact> {
+        if (!context.config.hideDuplicateContacts) {
+            return contacts
+        }
+
+        val order = context.config.contactSourcesPriority.split(",").filter { it.isNotEmpty() }
+        if (contacts.size < 2) {
+            return contacts
+        }
+
+        fun priorityOf(contact: Contact): Int {
+            val index = order.indexOf(contact.source)
+            return if (index == -1) Int.MAX_VALUE else index
+        }
+
+        // walk contacts best-source-first, dropping any lower-ranked copy whose numbers were already claimed
+        val byPriority = contacts.sortedWith(compareBy({ priorityOf(it) }))
+        val claimedNumbers = HashSet<String>()
+        val removedRawIds = HashSet<Int>()
+        byPriority.forEach { contact ->
+            val numbers = contact.phoneNumbers
+                .map { comparableNumber(it.normalizedNumber.ifEmpty { it.value }) }
+                .filter { it.isNotEmpty() }
+            if (numbers.isNotEmpty() && numbers.all { claimedNumbers.contains(it) }) {
+                removedRawIds.add(contact.rawId)
+            } else {
+                claimedNumbers.addAll(numbers)
+            }
+        }
+
+        if (removedRawIds.isEmpty()) {
+            return contacts
+        }
+
+        // preserve the caller's ordering, just drop the superseded duplicates
+        return ArrayList(contacts.filterNot { removedRawIds.contains(it.rawId) })
     }
 
     // re-applies the filter / view type / sorting to the already loaded contacts without re-querying the provider
@@ -222,7 +344,7 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
     }
 
     private fun updateListAdapter(contacts: ArrayList<Contact>) {
-        val viewType = context.config.contactsViewType
+        val viewType = effectiveViewType()
         setViewType(viewType)
 
         val currAdapter = binding.fragmentList.adapter as ContactsAdapter?
@@ -275,13 +397,28 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
     private fun setViewType(viewType: Int) {
         val spanCount = context.config.contactsGridColumnCount
         val layoutManager = if (viewType == VIEW_TYPE_GRID) {
-            binding.letterFastscroller.beGone()
             MyGridLayoutManager(context, spanCount)
         } else {
-            binding.letterFastscroller.beVisible()
             MyLinearLayoutManager(context)
         }
         binding.fragmentList.layoutManager = layoutManager
+        updateFastScrollerVisibility()
+    }
+
+    // while editing a list's members we always render a plain list (no grid, no combined window)
+    private fun effectiveViewType(): Int {
+        return if (isEditingListMembers) VIEW_TYPE_LIST else context.config.contactsViewType
+    }
+
+    // the A-Z fastscroller only makes sense for an alphabetical list; when sorting by frequency we
+    // instead show a discreet tapering wedge (wide = most contacted, narrow = least) as a hint
+    private fun updateFastScrollerVisibility() {
+        val isGrid = effectiveViewType() == VIEW_TYPE_GRID
+        val isFrequent = context.config.contactsSortedByRecents
+        val showLetters = !isGrid && !isFrequent
+        binding.letterFastscroller.beVisibleIf(showLetters)
+        binding.letterFastscrollerThumb.beVisibleIf(showLetters)
+        binding.frequencyIndicator.beVisibleIf(!isGrid && isFrequent)
     }
 
     // adapter only understands GRID or LIST, so COMBINED is rendered as a plain LIST
@@ -290,7 +427,7 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
     // in COMBINED mode show a grid of the 8 most contacted people at the bottom of the screen
     private fun updateCombinedContacts(contacts: ArrayList<Contact>) {
         val holder = binding.combinedContactsHolder
-        if (context.config.contactsViewType != VIEW_TYPE_COMBINED || contacts.isEmpty()) {
+        if (isEditingListMembers || context.config.contactsViewType != VIEW_TYPE_COMBINED || contacts.isEmpty()) {
             holder.beGone()
             return
         }
@@ -302,13 +439,19 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
 
         val topContacts = sortByRecents(contacts).take(8)
         holder.removeAllViews()
-        holder.background?.mutate()?.applyColorFilter(context.getProperTextColor().adjustAlpha(0.4f))
+        holder.background?.mutate()?.applyColorFilter(listColor(context.config.selectedContactGroupId))
         holder.columnCount = 4
         topContacts.forEach { contact ->
             val itemBinding = ItemCombinedContactBinding.inflate(LayoutInflater.from(context), holder, false)
-            itemBinding.combinedContactName.text = contact.getNameToDisplay()
+            val displayName = contact.getNameToDisplay()
+            val hasPhoto = contact.photoUri.isNotEmpty()
+            // same rule as the main grid: no photo -> first name on the tile, surname on the label below;
+            // with a photo -> show the photo and keep the full name below
+            val tileText = if (hasPhoto) null else AvatarHelper.firstNamePart(displayName)
+            val label = if (hasPhoto) displayName else AvatarHelper.surnamePart(displayName).ifEmpty { displayName }
+            itemBinding.combinedContactName.text = label
             itemBinding.combinedContactName.setTextColor(context.getProperTextColor())
-            SimpleContactsHelper(context).loadContactImage(contact.photoUri, itemBinding.combinedContactImage, contact.getNameToDisplay())
+            AvatarHelper(context).loadContactAvatar(contact.photoUri, itemBinding.combinedContactImage, displayName, tileText, tileWrapThreshold = 6)
             itemBinding.root.setOnClickListener {
                 (activity as? SimpleActivity)?.startCallWithConfirmationCheck(contact)
             }
@@ -414,8 +557,11 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
     private fun setupFilterChips() {
         binding.filterChipsHolder.removeAllViews()
         val selectedId = context.config.selectedContactGroupId
-        addFilterChip(context.getString(org.fossify.commons.R.string.favorites), FAVORITES_GROUP_ID, selectedId)
-        groups.forEach { group ->
+        if (!context.config.favoritesChipHidden) {
+            val favLabel = context.config.favoritesChipLabel.ifEmpty { context.getString(org.fossify.commons.R.string.favorites) }
+            addFilterChip(favLabel, FAVORITES_GROUP_ID, selectedId, favorites = true)
+        }
+        orderedGroups().forEach { group ->
             val id = group.id ?: return@forEach
             addFilterChip(group.title, id, selectedId, group)
         }
@@ -423,10 +569,50 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
         updateAddToListButton()
     }
 
-    private fun addFilterChip(label: String, id: Long, selectedId: Long, group: Group? = null) {
+    // lets the activity refresh the chip row after a list icon is picked
+    fun refreshFilterChips() {
+        activity?.runOnUiThread { setupFilterChips() }
+    }
+
+    // applies the user's custom left-to-right list order (stored in config) on top of the loaded groups
+    private fun orderedGroups(): List<Group> {
+        val order = context.config.contactListOrder
+            .split(",")
+            .mapNotNull { it.toLongOrNull() }
+        if (order.isEmpty()) {
+            return groups
+        }
+
+        return groups.sortedBy { group ->
+            val index = order.indexOf(group.id)
+            if (index >= 0) index else order.size + groups.indexOf(group)
+        }
+    }
+
+    // moves a list one position left (-1) or right (+1) among the filter chips and persists the order
+    private fun moveList(group: Group, direction: Int) {
+        val current = orderedGroups().mapNotNull { it.id }.toMutableList()
+        val from = current.indexOf(group.id)
+        if (from < 0) {
+            return
+        }
+
+        val to = from + direction
+        if (to < 0 || to >= current.size) {
+            return
+        }
+
+        val moved = current.removeAt(from)
+        current.add(to, moved)
+        context.config.contactListOrder = current.joinToString(",")
+        setupFilterChips()
+    }
+
+    private fun addFilterChip(label: String, id: Long, selectedId: Long, group: Group? = null, favorites: Boolean = false) {
         val chip = LayoutInflater.from(context).inflate(R.layout.item_filter_chip, binding.filterChipsHolder, false) as MyTextView
         chip.text = label
-        styleChip(chip, id == selectedId)
+        styleChip(chip, id == selectedId, listColor(id))
+        applyChipIcon(chip, id)
         chip.setOnClickListener {
             // switching lists cancels an in-progress member edit
             if (isEditingListMembers) {
@@ -439,37 +625,206 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
             gotContacts(getFilteredContacts())
         }
 
-        // long-pressing a user list chip offers renaming / deleting it
-        if (group != null) {
-            chip.setOnLongClickListener {
+        // long-pressing a user list chip offers renaming / deleting it; the Favorites chip gets its own menu
+        when {
+            group != null -> chip.setOnLongClickListener {
                 showListOptions(chip, group)
+                true
+            }
+
+            favorites -> chip.setOnLongClickListener {
+                showFavoritesOptions(chip)
                 true
             }
         }
         binding.filterChipsHolder.addView(chip)
     }
 
-    // trailing "+" chip that creates a new contact list
+    // draws the custom per-list image (icon-only) on the chip, or clears it back to plain text
+    private fun applyChipIcon(chip: MyTextView, id: Long) {
+        val iconUri = context.config.getListIcon(id)
+        if (iconUri.isEmpty()) {
+            chip.setCompoundDrawables(null, null, null, null)
+            return
+        }
+
+        // icon-only chips become a centered square so the logo sits dead-center instead of hugging the edge
+        val density = chip.resources.displayMetrics.density
+        val sizePx = (density * 38).toInt()
+        val padPx = (density * 6).toInt()
+        val squarePx = sizePx + padPx * 2
+        chip.text = ""
+        chip.gravity = Gravity.CENTER
+        chip.compoundDrawablePadding = 0
+        chip.setPadding(padPx, padPx, padPx, padPx)
+        chip.minWidth = 0
+        chip.minHeight = 0
+        chip.layoutParams = chip.layoutParams.apply {
+            width = squarePx
+            height = squarePx
+        }
+        Glide.with(context)
+            .asBitmap()
+            .load(Uri.parse(iconUri))
+            .circleCrop()
+            .override(sizePx, sizePx)
+            .into(object : CustomTarget<Bitmap>() {
+                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                    val drawable: Drawable = BitmapDrawable(chip.resources, resource)
+                    drawable.setBounds(0, 0, sizePx, sizePx)
+                    // use the top drawable so it centers horizontally regardless of the (empty) text
+                    chip.setCompoundDrawables(null, drawable, null, null)
+                }
+
+                override fun onLoadCleared(placeholder: Drawable?) {
+                    chip.setCompoundDrawables(null, null, null, null)
+                }
+            })
+    }
+
+    // trailing "+" chip that creates a new contact list; long-press brings a hidden Favorites chip back
     private fun addNewListChip() {
         val chip = LayoutInflater.from(context).inflate(R.layout.item_filter_chip, binding.filterChipsHolder, false) as MyTextView
         chip.text = "+"
         styleChip(chip, false)
         chip.setOnClickListener { showListNameDialog(null) }
+        if (context.config.favoritesChipHidden) {
+            chip.setOnLongClickListener {
+                PopupMenu(chip.context, chip).apply {
+                    menu.add(0, 1, 0, R.string.show_favorites)
+                    setOnMenuItemClickListener {
+                        context.config.favoritesChipHidden = false
+                        setupFilterChips()
+                        true
+                    }
+                    show()
+                }
+                true
+            }
+        }
         binding.filterChipsHolder.addView(chip)
     }
 
-    private fun showListOptions(anchor: MyTextView, group: Group) {
+    private fun showFavoritesOptions(anchor: MyTextView) {
         PopupMenu(anchor.context, anchor).apply {
+            val hasIcon = context.config.getListIcon(FAVORITES_GROUP_ID).isNotEmpty()
+            val hasColor = context.config.getListColor(FAVORITES_GROUP_ID) != null
             menu.add(0, 1, 0, R.string.rename_list)
-            menu.add(0, 2, 1, R.string.delete_list)
+            menu.add(0, 2, 1, R.string.set_list_icon)
+            if (hasIcon) {
+                menu.add(0, 3, 2, R.string.remove_list_icon)
+            }
+            menu.add(0, 8, 3, R.string.set_list_color)
+            if (hasColor) {
+                menu.add(0, 9, 4, R.string.remove_list_color)
+            }
+            menu.add(0, 4, 5, R.string.hide_favorites)
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
-                    1 -> showListNameDialog(group)
-                    2 -> confirmDeleteList(group)
+                    1 -> showFavoritesRenameDialog()
+                    2 -> (activity as? MainActivity)?.pickListIcon(FAVORITES_GROUP_ID)
+                    3 -> {
+                        context.config.setListIcon(FAVORITES_GROUP_ID, null)
+                        setupFilterChips()
+                    }
+
+                    8 -> pickListColor(FAVORITES_GROUP_ID)
+                    9 -> {
+                        context.config.setListColor(FAVORITES_GROUP_ID, null)
+                        setupFilterChips()
+                        gotContacts(getFilteredContacts())
+                    }
+
+                    4 -> {
+                        context.config.favoritesChipHidden = true
+                        if (context.config.selectedContactGroupId == FAVORITES_GROUP_ID) {
+                            context.config.selectedContactGroupId = ALL_CONTACTS_GROUP_ID
+                        }
+                        setupFilterChips()
+                        gotContacts(getFilteredContacts())
+                    }
                 }
                 true
             }
             show()
+        }
+    }
+
+    // renames the Favorites chip locally (e.g. to an emoji); an empty value restores the default name
+    private fun showFavoritesRenameDialog() {
+        val activity = activity as? SimpleActivity ?: return
+        val dialogBinding = DialogListNameBinding.inflate(activity.layoutInflater)
+        dialogBinding.listNameValue.setText(context.config.favoritesChipLabel)
+
+        activity.getAlertDialogBuilder()
+            .setPositiveButton(org.fossify.commons.R.string.ok, null)
+            .setNegativeButton(org.fossify.commons.R.string.cancel, null)
+            .apply {
+                activity.setupDialogStuff(dialogBinding.root, this, R.string.rename_list) { alertDialog ->
+                    alertDialog.showKeyboard(dialogBinding.listNameValue)
+                    alertDialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        context.config.favoritesChipLabel = dialogBinding.listNameValue.value
+                        setupFilterChips()
+                        alertDialog.dismiss()
+                    }
+                }
+            }
+    }
+
+    private fun showListOptions(anchor: MyTextView, group: Group) {
+        val groupId = group.id ?: return
+        PopupMenu(anchor.context, anchor).apply {
+            val hasIcon = context.config.getListIcon(groupId).isNotEmpty()
+            val hasColor = context.config.getListColor(groupId) != null
+            menu.add(0, 1, 0, R.string.edit_list_members)
+            menu.add(0, 2, 1, R.string.rename_list)
+            menu.add(0, 3, 2, R.string.set_list_icon)
+            if (hasIcon) {
+                menu.add(0, 4, 3, R.string.remove_list_icon)
+            }
+            menu.add(0, 8, 4, R.string.set_list_color)
+            if (hasColor) {
+                menu.add(0, 9, 5, R.string.remove_list_color)
+            }
+            menu.add(0, 5, 6, R.string.delete_list)
+            menu.add(0, 6, 7, R.string.move_list_left)
+            menu.add(0, 7, 8, R.string.move_list_right)
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    1 -> withWritePermission { enterEditListMembersMode(group) }
+                    2 -> showListNameDialog(group)
+                    3 -> (activity as? MainActivity)?.pickListIcon(groupId)
+                    4 -> {
+                        context.config.setListIcon(groupId, null)
+                        setupFilterChips()
+                    }
+
+                    8 -> pickListColor(groupId)
+                    9 -> {
+                        context.config.setListColor(groupId, null)
+                        setupFilterChips()
+                        gotContacts(getFilteredContacts())
+                    }
+
+                    5 -> confirmDeleteList(group)
+                    6 -> moveList(group, -1)
+                    7 -> moveList(group, 1)
+                }
+                true
+            }
+            show()
+        }
+    }
+
+    // lets the user pick a custom accent colour for a section; refreshes the chips and combined frame
+    private fun pickListColor(id: Long) {
+        val activity = activity as? SimpleActivity ?: return
+        ColorPickerDialog(activity, listColor(id)) { wasPositivePressed, color ->
+            if (wasPositivePressed) {
+                context.config.setListColor(id, color)
+                setupFilterChips()
+                gotContacts(getFilteredContacts())
+            }
         }
     }
 
@@ -560,6 +915,8 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
         isEditingListMembers = true
         editingListGroup = group
         editingCheckedKeys.clear()
+        // a leftover search query would filter the pickable contacts, so clear it as we start editing
+        (activity as? MainActivity)?.closeSearchBar()
         allContacts.forEach { contact ->
             if (contact.groups.any { it.id == group.id }) {
                 editingCheckedKeys.add(contact.rawId)
@@ -676,22 +1033,34 @@ class ContactsFragment(context: Context, attributeSet: AttributeSet) : MyViewPag
 
         val groupId = context.config.selectedContactGroupId
         val isSpecificList = groupId != ALL_CONTACTS_GROUP_ID && groupId != FAVORITES_GROUP_ID
+        // only show the button once the user has scrolled to the very bottom of the list, so it
+        // appears right after the last contact instead of permanently taking up space
         val atListEnd = !binding.fragmentList.canScrollVertically(1)
         binding.addToListButton.beVisibleIf(isSpecificList && atListEnd)
     }
 
-    private fun styleChip(chip: MyTextView, selected: Boolean) {
+    private fun styleChip(chip: MyTextView, selected: Boolean, accentColor: Int = context.getProperPrimaryColor()) {
         val background = context.getDrawable(R.drawable.contact_filter_chip)!!.mutate()
         if (selected) {
-            val primaryColor = context.getProperPrimaryColor()
-            background.applyColorFilter(primaryColor)
-            chip.setTextColor(primaryColor.getContrastColor())
+            background.applyColorFilter(accentColor)
+            chip.setTextColor(accentColor.getContrastColor())
         } else {
             val textColor = context.getProperTextColor()
             background.applyColorFilter(textColor.adjustAlpha(0.1f))
             chip.setTextColor(textColor)
         }
         chip.background = background
+    }
+
+    // gives each contact section its own accent colour so it is obvious which one is active;
+    // uses the user-picked colour if set, otherwise a stable palette colour ("All" stays neutral)
+    private fun listColor(id: Long): Int {
+        context.config.getListColor(id)?.let { return it }
+        if (id == ALL_CONTACTS_GROUP_ID) {
+            return context.getProperPrimaryColor()
+        }
+        val palette = letterBackgroundColors
+        return palette[(abs(id).toInt() % palette.size)].toInt()
     }
 
     // builds a phone-number -> number of calls map by scanning the existing call log,
